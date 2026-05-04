@@ -35,36 +35,30 @@ STL (for 3D printing), 3MF, AMF, IGES, and OBJ files.
 
 ## Environment Setup
 
-**CadQuery is pre-installed in the Claude.ai sandbox** (`cadquery 2.7.0` + `cadquery-ocp 7.8.1.1`).
-Always try to import first — only install if the import fails.
+**CadQuery is NOT pre-installed** — always install it first with pip before any import.
+`pypi.org` is in the allowed network list, so installation is fast (~1–2 seconds, silent).
 
-### Step 1: Check import (do this ALWAYS before anything else)
-
-```python
-try:
-    import cadquery as cq
-    print("CadQuery OK:", cq.__version__)
-except ImportError:
-    print("CadQuery not found — need to install")
-```
-
-### Step 2: Install only if import failed
+### Step 1: Install cadquery (ALWAYS run this first, unconditionally)
 
 ```bash
-# Only run this if step 1 failed:
 pip install cadquery --break-system-packages -q
 ```
 
-**Important notes about installation:**
+### Step 2: Verify import
+
+```python
+import cadquery as cq
+print("CadQuery OK:", cq.__version__)
+```
+
+**Important notes:**
 - The OCP package on PyPI is named `cadquery-ocp` (not `OCP`) — cadquery pulls it automatically
 - Supports Python 3.9–3.12 only; Python 3.13+ may fail
-- PyPI (`pypi.org`) is in Claude's allowed network list, so `pip install` usually works
-- **If pip fails due to network restrictions** (operator has blocked internet): cadquery is
-  pre-installed and the import in step 1 will succeed — no installation needed at all
+- Installation is idempotent — running pip install again when already installed is instant and harmless
 
-### Step 3: If both import and pip fail
+### Step 3: If pip install fails
 
-Network is blocked AND cadquery is somehow missing. In this case:
+Network is blocked or pip fails. In this case:
 1. Tell the user: "CadQuery is not available in this environment"
 2. Offer to generate the Python modeling script as a `.py` file the user can run locally
 3. Provide installation instructions: `pip install cadquery` (requires Python 3.9–3.12)
@@ -359,26 +353,24 @@ When the user says "strong", "watertight", "герметичный", "прочн
 
 1. **Раздельный экспорт деталей — ОБЯЗАТЕЛЬНО:**
    - Каждая подвижная или независимая деталь экспортируется в ОТДЕЛЬНЫЙ STL/STEP файл.
-   - НИКОГДА не записывать все треугольники / тела в один файл — слайсер не разделит детали,
-     они «склеятся» как единый объект и напечатаются как монолит.
-   - Схема именования: `toyname_sunGear.stl`, `toyname_planet1.stl`, `toyname_body.stl` и т.д.
+   - НИКОГДА не записывать все тела в один файл — слайсер не разделит детали, они
+     напечатаются как монолит.
+   - Схема именования: `toyname_sunGear.stl`, `toyname_planet1.stl`, `toyname_body.stl`
    - В CadQuery: отдельный `cq.exporters.export(part, filename)` для каждой детали.
    - В numpy/ручном STL: отдельный вызов `write_stl(filename, triangles)` для каждой детали.
 
 2. **Зазор между зубьями шестерён (gear clearance):**
-   - Теоретический centre-to-centre = sum of pitch radii, но для FDM нужна коррекция.
-   - Минимальный зазор между зубьями: **0.35–0.4 мм на сторону** (не 0.2 мм — этого не хватает).
-   - Уменьшать фактический addendum каждой шестерни на 0.35 мм от теоретического.
-   - Расстояние между центрами оставлять теоретическим — зазор достигается уменьшением зубьев, не раздвиганием центров.
-   - Проверка перед экспортом: минимальное расстояние между контурами двух шестерён ≥ 0.3 мм.
+   - Минимальный зазор между зубьями: **0.35–0.4 мм на сторону** (0.2 мм недостаточно — зубья
+     сплавятся при печати).
+   - Уменьшать addendum каждой шестерни на 0.35 мм от теоретического значения.
+   - Расстояние между центрами оставлять теоретическим — зазор достигается уменьшением зубьев,
+     не раздвиганием центров.
 
 3. **Нависающие элементы (overhangs):**
    - Любой декоративный выступ (бампы, рукоятки, ушки) должен иметь угол к вертикали ≤ 45°.
    - Горизонтальные цилиндрические бампы ЗАПРЕЩЕНЫ без поддержек — заменять конусами или
      каплевидными формами (self-supporting).
-   - Перед финальным экспортом мысленно проверить каждую нависающую грань: если угол > 45°
-     от горизонтали — переделать форму или явно предупредить пользователя:
-     «Деталь X требует поддержек в слайсере».
+   - Если нависание неизбежно — явно предупредить пользователя: «Деталь X требует поддержек».
 
 ## Output Delivery
 
@@ -397,8 +389,8 @@ After generating models:
 - **Cap too short**: For GPI 415 finishes, cap height should be ≥ 15mm
 - **No sealing element**: Always add a seal ring or gasket groove for "герметичный" parts
 - **Forgetting clearance**: Mating parts need 0.2–0.5mm gap depending on manufacturing
-- **Gear clearance too small**: For FDM gears, use 0.35–0.4mm clearance per side on tooth addendum — 0.2mm is not enough and teeth will fuse during printing
-- **All parts in one STL**: Multi-part toys MUST export each part to a separate file — merging all triangles into one STL causes slicer to treat everything as one solid object
+- **Gear clearance too small**: For FDM gears, use 0.35–0.4mm per side on tooth addendum — 0.2mm causes teeth to fuse during printing
+- **All parts in one STL**: Multi-part toys MUST export each part as a separate file — merging all triangles into one STL makes slicer treat everything as one solid
 - **Horizontal decorative bumps**: Cylindrical bumps extruding outward horizontally are unprintable without supports — use cones or teardrop shapes instead
 - **Wrong units**: CadQuery defaults to mm. If user gives inches, convert first.
 - **Ignoring tolerances**: Design with margin for manufacturing variation
