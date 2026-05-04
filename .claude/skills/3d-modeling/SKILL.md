@@ -355,6 +355,31 @@ When the user says "strong", "watertight", "герметичный", "прочн
 - Add 0.2–0.3mm clearance for mating parts
 - Prefer 3MF over STL for modern slicers (preserves units and scale)
 
+**Multi-part toys / fidget toys (КРИТИЧНО — learned from failures):**
+
+1. **Раздельный экспорт деталей — ОБЯЗАТЕЛЬНО:**
+   - Каждая подвижная или независимая деталь экспортируется в ОТДЕЛЬНЫЙ STL/STEP файл.
+   - НИКОГДА не записывать все треугольники / тела в один файл — слайсер не разделит детали,
+     они «склеятся» как единый объект и напечатаются как монолит.
+   - Схема именования: `toyname_sunGear.stl`, `toyname_planet1.stl`, `toyname_body.stl` и т.д.
+   - В CadQuery: отдельный `cq.exporters.export(part, filename)` для каждой детали.
+   - В numpy/ручном STL: отдельный вызов `write_stl(filename, triangles)` для каждой детали.
+
+2. **Зазор между зубьями шестерён (gear clearance):**
+   - Теоретический centre-to-centre = sum of pitch radii, но для FDM нужна коррекция.
+   - Минимальный зазор между зубьями: **0.35–0.4 мм на сторону** (не 0.2 мм — этого не хватает).
+   - Уменьшать фактический addendum каждой шестерни на 0.35 мм от теоретического.
+   - Расстояние между центрами оставлять теоретическим — зазор достигается уменьшением зубьев, не раздвиганием центров.
+   - Проверка перед экспортом: минимальное расстояние между контурами двух шестерён ≥ 0.3 мм.
+
+3. **Нависающие элементы (overhangs):**
+   - Любой декоративный выступ (бампы, рукоятки, ушки) должен иметь угол к вертикали ≤ 45°.
+   - Горизонтальные цилиндрические бампы ЗАПРЕЩЕНЫ без поддержек — заменять конусами или
+     каплевидными формами (self-supporting).
+   - Перед финальным экспортом мысленно проверить каждую нависающую грань: если угол > 45°
+     от горизонтали — переделать форму или явно предупредить пользователя:
+     «Деталь X требует поддержек в слайсере».
+
 ## Output Delivery
 
 After generating models:
@@ -372,6 +397,9 @@ After generating models:
 - **Cap too short**: For GPI 415 finishes, cap height should be ≥ 15mm
 - **No sealing element**: Always add a seal ring or gasket groove for "герметичный" parts
 - **Forgetting clearance**: Mating parts need 0.2–0.5mm gap depending on manufacturing
+- **Gear clearance too small**: For FDM gears, use 0.35–0.4mm clearance per side on tooth addendum — 0.2mm is not enough and teeth will fuse during printing
+- **All parts in one STL**: Multi-part toys MUST export each part to a separate file — merging all triangles into one STL causes slicer to treat everything as one solid object
+- **Horizontal decorative bumps**: Cylindrical bumps extruding outward horizontally are unprintable without supports — use cones or teardrop shapes instead
 - **Wrong units**: CadQuery defaults to mm. If user gives inches, convert first.
 - **Ignoring tolerances**: Design with margin for manufacturing variation
 - **Assembly not solved**: Always call `assy.solve()` before exporting constrained assemblies
